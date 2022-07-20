@@ -739,6 +739,35 @@ pub trait FloatCore: Num + NumCast + Neg<Output = Self> + PartialOrd + Copy {
     /// check(f64::NEG_INFINITY, 1 << 52, 972, -1);
     /// ```
     fn integer_decode(self) -> (u64, i16, i8);
+
+    /// Restrict a value to a certain interval unless it is NaN.
+    ///
+    /// Returns `max` if `self` is greater than `max`, and `min` if `self` is
+    /// less than `min`. Otherwise this returns `self`.
+    ///
+    /// Note that this function returns NaN if the initial value was NaN as
+    /// well.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `min > max`, `min` is NaN, or `max` is NaN.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use num_traits::float::FloatCore;
+    /// use std::{f32, f64};
+    ///
+    /// fn check<T: FloatCore>(x: T, min: T, max: T, expected: T) {
+    ///     let actual = x.clamp(min, max);
+    ///     assert!(actual == expected);
+    /// }
+    ///
+    /// check(-3.0f64, -2.0, 1.0, -2.0);
+    /// check(0.0f64, -2.0, 1.0, 0.0);
+    /// check(2.0f64, -2.0, 1.0, 1.0);
+    /// ```
+    fn clamp(self, min: Self, max: Self) -> Self;
 }
 
 impl FloatCore for f32 {
@@ -818,6 +847,7 @@ impl FloatCore for f32 {
         Self::powi(self, n: i32) -> Self;
         Self::to_degrees(self) -> Self;
         Self::to_radians(self) -> Self;
+        Self::clamp(self, min: Self, max: Self) -> Self;
     }
 
     #[cfg(all(not(feature = "std"), feature = "libm"))]
@@ -916,6 +946,7 @@ impl FloatCore for f64 {
         Self::powi(self, n: i32) -> Self;
         Self::to_degrees(self) -> Self;
         Self::to_radians(self) -> Self;
+        Self::clamp(self, min: Self, max: Self) -> Self;
     }
 
     #[cfg(all(not(feature = "std"), feature = "libm"))]
@@ -1880,6 +1911,35 @@ pub trait Float: Num + Copy + NumCast + PartialOrd + Neg<Output = Self> {
             self.neg()
         }
     }
+
+    /// Restrict a value to a certain interval unless it is NaN.
+    ///
+    /// Returns `max` if `self` is greater than `max`, and `min` if `self` is
+    /// less than `min`. Otherwise this returns `self`.
+    ///
+    /// Note that this function returns NaN if the initial value was NaN as
+    /// well.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `min > max`, `min` is NaN, or `max` is NaN.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use num_traits::float::FloatCore;
+    /// use std::{f32, f64};
+    ///
+    /// fn check<T: FloatCore>(x: T, min: T, max: T, expected: T) {
+    ///     let actual = x.clamp(min, max);
+    ///     assert!(actual == expected);
+    /// }
+    ///
+    /// check(-3.0f64, -2.0, 1.0, -2.0);
+    /// check(0.0f64, -2.0, 1.0, 0.0);
+    /// check(2.0f64, -2.0, 1.0, 1.0);
+    /// ```
+    fn clamp(self, min: Self, max: Self) -> Self;
 }
 
 #[cfg(feature = "std")]
@@ -1956,6 +2016,7 @@ macro_rules! float_impl_std {
                 Self::asinh(self) -> Self;
                 Self::acosh(self) -> Self;
                 Self::atanh(self) -> Self;
+                Self::clamp(self, min: Self, max: Self) -> Self;
             }
 
             #[cfg(has_copysign)]
@@ -2170,7 +2231,7 @@ macro_rules! float_const_impl {
         impl FloatConst for $T {
             constant! {
                 $( $constant() -> $T::consts::$constant; )+
-                TAU() -> 6.28318530717958647692528676655900577;
+                TAU() -> 6.283185307179586476925286766559005;
                 LOG10_2() -> 0.301029995663981195213738894724493027;
                 LOG2_10() -> 3.32192809488736234787031942948939018;
             }
